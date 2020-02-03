@@ -1,0 +1,299 @@
+---
+title: "APM466A1"
+author: "Le Fu"
+date: "30/01/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(YieldCurve)
+mydata=read.csv("BONDDATA.csv")
+require(ggplot2)
+require(reshape2)
+library(lubridate)
+```
+
+# Fundamental Questions 
+
+(The content of the report is under three pages, but the size of graphs and spacing is big so it exceeds three pages)
+
+## Question 1:
+
+a) Government issue bonds to raise money by attracting investors to purchase the bonds by offering a low risk safe investment option.
+
+
+b) In the governments perspective, you can spot the trend of the economy through a yield curve. For example, the yield curve can give an indication or prediction of when a recession might be coming. Specifically, from a yield curve inversion.
+
+
+c) To reduce the money supply, the government can choose to sell bonds to lower the prices and raise interest rate to cool the economy. 
+
+## Question 2:
+
+These are the 10 bonds (excluding zero coupon bonds) I choose to construct a 0 to 5 year yield curve: *CAN 1.5 MAR 20* (zero coupon bond), *CAN 3.5 JUN 20* (zero coupon bond), *CAN 0.75 MAR 21*, *CAN 3.25 JUN 21*, *CAN 0.5 MAR 22*, *CAN 2.75 JUN 22*, *CAN 1.75 MAR 23*, *CAN 1.50 JUN 23*, *CAN 2.25 MAR 24*, *CAN 2.5 JUN 24*, *CAN 1.25 MAR 25*, *CAN 2.25 JUN 25*. The reason why I pick these bonds is because they are even time intervals for maturity date, March and June for each year and their coupon rates don't vary by a lot. 
+
+## Question 3:
+
+The covariance matrix measures the associativity of each variable with eachother, the eigenvectors tells us in which direction is our data spreading towards, and the eigenvalue tells us the importance of these directions. If the largest eigenvalue is near equal weights, then the most relevant market move is a parallel shif of the yield curve.
+
+# Empirical Questions:
+
+## Question 1:
+```{r yield curve, include=TRUE, echo=FALSE}
+
+#separating the data
+zp<-mydata[1:10,] 
+zp2<-mydata[11:20,]
+zp3<-mydata[21:30,]
+zp4<-mydata[31:40,]
+zp5<-mydata[41:50,]
+zp6<-mydata[51:60,]
+zp7<-mydata[61:70,]
+zp8<-mydata[71:80,]
+zp9<-mydata[81:90,]
+zp10<-mydata[91:100,]
+zp11<-mydata[101:110,]
+zp12<-mydata[111:120,]
+
+coupons<-c(1.5, 3.5, 0.75, 3.25, 0.5, 2.75, 1.75, 1.5, 2.25, 2.5)
+
+#t1<-data.frame(a=NA, b=NA, c=NA, d=NA, e=NA, f=NA, g=NA, h=NA, i=NA, j=NA)
+
+#yield for zero-coupon bonds
+zy<-function(coupons=1, BondPrices=c(2, 2, 2, 2, 2, 2, 2, 2, 2, 2), Time=0.5){
+  t1<-c()
+  for (j in 1:10)
+    t1[j]<-(-log(BondPrices[j]/((coupons/2) + 100)))/Time
+  return(t1)
+}
+
+
+zm2020<-zy(coupon=1.5, BondPrices = zp$Historical.Prices, Time = 0.5)
+
+#bootstrapping for the rest of the yield rates
+
+zby<-function(coupon1=1.5, coupon2=3.5, rt1=c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1), BondPrices=c(2, 2, 2, 2, 2, 2, 2, 2, 2, 2), Time=0.5){
+ table1 = c()
+ for (i in 1:10)
+    table1[i]<--log((BondPrices[i]-sum((coupon1/2)*exp((-Time)*rt1[i])))/((coupon2/2)+100))/Time
+ return(table1)
+
+}
+
+
+
+zj2020<-zby(coupon1 = 1.5, coupon2 = 3.5, rt1=zm2020, BondPrices = zp2$Historical.Prices, Time = 1)
+zm2021<-zby(coupon1 = 3.5, coupon2 = 0.75, rt1 = zj2020, BondPrices = zp3$Historical.Prices, Time = 1.5)
+zj2021<-zby(coupon1 = 0.75, coupon2 = 3.25, rt1 = zm2021, BondPrices = zp4$Historical.Prices, Time = 2)
+zm2022<-zby(coupon1 = 3.25, coupon2 = 0.5, rt1 = zj2021, BondPrices = zp5$Historical.Prices, Time = 2.5)
+zj2022<-zby(coupon1 = 0.5, coupon2 = 2.75, rt1 = zm2021, BondPrices = zp6$Historical.Prices, Time = 3)
+zm2023<-zby(coupon1 = 2.75, coupon2 = 1.75, rt1 = zj2022, BondPrices = zp7$Historical.Prices, Time = 3.5)
+zj2023<-zby(coupon1 = 1.75, coupon2 = 1.5, rt1 = zm2023, BondPrices = zp8$Historical.Prices, Time = 4)
+zm2024<-zby(coupon1 = 1.5, coupon2 = 2.25, rt1 = zj2023, BondPrices = zp9$Historical.Prices, Time = 4.5)
+zj2024<-zby(coupon1 = 2.25, coupon2 = 2.5, rt1 = zm2024, BondPrices = zp10$Historical.Prices, Time = 5)
+zm2025<-zby(coupon1 = 2.5, coupon2 = 1.25, rt1 = zj2024, BondPrices = zp11$Historical.Prices, Time = 5.5)
+zj2025<-zby(coupon1 = 1.25, coupon2 = 2.25, rt1 = zm2025, BondPrices = zp12$Historical.Prices, Time = 6)
+yield_rates<-data.frame(zm2020, zj2020, zm2021, zj2021, zm2022, zj2022, zm2023, zj2023, zm2024, zj2024, zm2025, zj2025)
+
+
+#plot yield curve
+
+plot_colours <- c("blue", "red", "forestgreen", "yellow", rgb(0.5,0.4,.3), rgb(0.4,0.7,0), rgb(.2,0.67,0.88), rgb(0.5,0.24,0.79), rgb(0.3,0,.6), rgb(0,0.8,.2))
+plot_colours1 <- plot_colours[c(1,2)]
+
+dates<-as.Date(c("2020-03-01", "2020-06-01", "2021-03-01", "2021-06-01", "2022-03-01", "2022-06-01", "2023-03-01", "2023-06-01", "2024-03-01", "2024-06-01", "2025-03-01", "2025-06-01"))
+
+closing<-as.Date(c("2020-01-02", "2020-01-03", "2020-01-06", "2020-01-07", "2020-01-08", "2020-01-09", "2020-01-10", "2020-01-13", "2020-01-14", "2020-01-15"))
+
+plot(dates, yield_rates[1, ], main = "Yield Curve", type = "l", xlab = "Time", ylab = "Yield Rates(%)")
+lines(dates, yield_rates[2, ], type="l", lty=1, col=plot_colours[2])
+lines(dates, yield_rates[3, ], type="l", lty=1, col=plot_colours[3])
+lines(dates, yield_rates[4, ], type="l", lty=1, col=plot_colours[4])
+lines(dates, yield_rates[5, ], type="l", lty=1, col=plot_colours[5])
+lines(dates, yield_rates[6, ], type="l", lty=1, col=plot_colours[6])
+lines(dates, yield_rates[7, ], type="l", lty=1, col=plot_colours[7])
+lines(dates, yield_rates[8, ], type="l", lty=1, col=plot_colours[8])
+lines(dates, yield_rates[9, ], type="l", lty=1, col=plot_colours[9])
+lines(dates, yield_rates[10, ], type="l", lty=1, col=plot_colours[10])
+lines(dates, yield_rates[11, ], type="l", lty=1, col=plot_colours[11])
+lines(dates, yield_rates[12, ], type="l", lty=1, col=plot_colours[12])
+
+legend("topright", 
+  legend = closing, 
+  col = plot_colours, 
+  lty=1,
+  bty = 1, 
+  cex = 0.5, 
+  text.col = plot_colours, 
+  horiz = F , 
+  inset = c(0.1, 0.1))
+```
+For plotting the yield curves, I first used the equation to find the yield rate for zero coupon bonds (values for zm2020):
+
+$$ r(T) = -\frac{log(\frac{P}{N})}{T} $$
+
+Then I isolated for the unknown yield rate and used the values I calculated from the previous step to find the unknown yield rate. This is the equation used:
+
+$$ r(t_{i}) = -\frac{log(\frac{P-p_{i-1}e^{-r(t_{i-1})t_{i-1}}}{p_{i}})}{t_{i}} $$
+
+Then after I find the yield rates, I can use r to plot the graph. 
+
+## Question 2
+
+```{r spot curve, echo=FALSE}
+
+#spot rate for zero coupons 
+zspot_r<-function(BondPrice2=c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1), Time2= 1){
+  st<-c()
+  for (i in 1:10)
+    st[i]<-200*((100/BondPrice2[i])^(1/(Time2*2))-1)
+  return(st)
+}
+
+#spot rate for bonds compounded continuously
+
+cspot_r<-function(BondPrice2=c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1), Time2= 1){
+  cst<-c()
+  for (i in 1:10)
+    cst[i]<-(log(100/BondPrice2[i])/Time2)*100
+  return(cst)
+}
+
+sm2020<-zspot_r(BondPrice2 = zp$Historical.Prices, Time2 = 0.5)
+sj2020<-cspot_r(BondPrice2 = zp2$Historical.Prices, Time2 = 1)
+sm2021<-cspot_r(BondPrice2 = zp3$Historical.Prices, Time2 = 1.5)
+sj2021<-cspot_r(BondPrice2 = zp4$Historical.Prices, Time2 = 2)
+sm2022<-cspot_r(BondPrice2 = zp5$Historical.Prices, Time2 = 2.5)
+sj2022<-cspot_r(BondPrice2 = zp6$Historical.Prices, Time2 = 3)
+sm2023<-cspot_r(BondPrice2 = zp7$Historical.Prices, Time2 = 3.5)
+sj2023<-cspot_r(BondPrice2 = zp8$Historical.Prices, Time2 = 4)
+sm2024<-cspot_r(BondPrice2 = zp9$Historical.Prices, Time2 = 4.5)
+sj2024<-cspot_r(BondPrice2 = zp10$Historical.Prices, Time2 = 5)
+sm2025<-cspot_r(BondPrice2 = zp11$Historical.Prices, Time2 = 5.5)
+sj2025<-cspot_r(BondPrice2 = zp12$Historical.Prices, Time2 = 6)
+
+spot_rates<-data.frame(sm2020, sj2020, sm2021, sj2021, sm2022, sj2022, sm2023, sj2023, sm2024, sj2024, sm2025, sj2025)
+
+
+dates2<-as.Date(c("2020-03-01", "2020-06-01", "2021-03-01", "2021-06-01", "2022-03-01", "2022-06-01", "2023-03-01", "2023-06-01", "2024-03-01", "2024-06-01", "2025-03-01", "2025-06-01"))
+
+plot(dates2, spot_rates[1, ], main = "Yield Curve with Spot Interest Rates", type = "l", xlab = "Time", ylab = "Yield Rates(%)")
+lines(dates2, spot_rates[2, ], type="l", lty=1, col=plot_colours[2])
+lines(dates2, spot_rates[3, ], type="l", lty=1, col=plot_colours[3])
+lines(dates2, spot_rates[4, ], type="l", lty=1, col=plot_colours[4])
+lines(dates2, spot_rates[5, ], type="l", lty=1, col=plot_colours[5])
+lines(dates2, spot_rates[6, ], type="l", lty=1, col=plot_colours[6])
+lines(dates2, spot_rates[7, ], type="l", lty=1, col=plot_colours[7])
+lines(dates2, spot_rates[8, ], type="l", lty=1, col=plot_colours[8])
+lines(dates2, spot_rates[9, ], type="l", lty=1, col=plot_colours[9])
+lines(dates2, spot_rates[10, ], type="l", lty=1, col=plot_colours[10])
+lines(dates, yield_rates[11, ], type="l", lty=1, col=plot_colours[11])
+lines(dates, yield_rates[12, ], type="l", lty=1, col=plot_colours[12])
+
+legend("topright", 
+  legend = closing, 
+  col = plot_colours, 
+  lty=1,
+  bty = 1, 
+  cex = 0.5, 
+  text.col = plot_colours, 
+  horiz = F , 
+  inset = c(0.1, 0.1))
+  
+```
+
+To find the spot rate I used the formula for the zero coupon bonds (coupons that have no more coupon payments):
+
+$$ s_{n} = m[(\frac{Facevalue}{BondPrice})^{(\frac{1}{n*m})}-1] $$
+where m is the number of coupon payments per year, n is the number of year to maturity.
+
+And this formula for the coupons that comes after zero coupon bonds:
+
+$$ s_{n} = \frac{log(\frac{Facevalue}{BondPrice})}{n} $$
+The code is basically making both of these equations out as a function and just plugging in the bond prices collected from the website then putting them into a data frame and use all of the calculated spot rates to plot the graph.
+
+## Question 3
+
+```{r forward rate, echo=FALSE}
+
+#forward rate from year x to year y for zero coupon
+
+zforward_r<-function(BondPrice1=c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),BondPrice2=c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1), Time1= 1, Time2=1){
+  ft<-c()
+  for (i in 1:10)
+    ft[i]<-200*((BondPrice1[i]/BondPrice2[i])^(1/(2*(Time1-Time2)))-1)
+  return(ft)
+}
+
+cforward_r<-function(spotrate1=c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),spotrate2=c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1), Time1= 1, Time2=1){
+  cft<-c()
+  for (i in 1:10)
+    cft[i]<-((Time2*spotrate2[i])-(Time1*spotrate1[i]))/(Time2-Time1)
+  return(cft)
+}
+
+mj2020<-zforward_r(BondPrice1 = zp$Historical.Prices, BondPrice2 = zp2$Historical.Prices, Time1=0.5, Time2 = 1)
+jj2021<-cforward_r(spotrate1 = sj2020, spotrate2 = sj2021, Time1 = 1, Time2 = 2)
+jj2022<-cforward_r(spotrate1 = sj2020, spotrate2 = sj2022, Time1 = 1, Time2 = 3)
+jj2023<-cforward_r(spotrate1 = sj2020, spotrate2 = sj2023, Time1 = 1, Time2 = 4)
+
+forward_rate<-data.frame(mj2020, jj2021, jj2022, jj2023)
+
+datesf<-as.Date(c("2020-06-01", "2021-06-01", "2022-06-01", "2023-06-01"))
+
+
+plot(datesf, forward_rate[1, ], main = "Forward Curve", type = "l", xlab = "Time", ylab = "Forward Rates(%)")
+lines(datesf, forward_rate[2, ], type="l", lty=1, col=plot_colours[2])
+lines(datesf, forward_rate[3, ], type="l", lty=1, col=plot_colours[3])
+lines(datesf, forward_rate[4, ], type="l", lty=1, col=plot_colours[4])
+
+legend("topright", 
+  legend = closing, 
+  col = plot_colours, 
+  lty=1,
+  bty = 1, 
+  cex = 0.5, 
+  text.col = plot_colours, 
+  horiz = F , 
+  inset = c(0.1, 0.1))
+
+```
+
+The forward rate from time x to y, 1yr to 1yr is:
+
+$$ f_{y-x}=m[(\frac{BondPrice_{y}}{BondPrice_{x}})^{(\frac{1}{m(x-y)})}-1] $$
+
+And the forward rate from time x to y, 1yr-2yr, 1yr-3yr and 1yr-4yr:
+
+$$ f_{y-x} = \frac{ySpotRate_{y}-xSpotRate_{x}}{y-x} $$
+The bonds used to calculate 1yr-1yr forward rate is *CAN 1.5 MAR 20* and *CAN 3.5 JUN 20*, 1yr-2yr: *CAN 3.5 JUN 20* and *CAN 3.25 JUN 21*, 1yr-3yr:*CAN 3.5 JUN 20* and *CAN 2.75 JUN 22*, 1yr-4yr: *CAN 3.5 JUN 20* and *CAN 1.50 JUN 23*. The code is structured the same way as before by writing both formulas as functions and then plugging in the values then plot into graphs. 
+
+# End of Report
+
+## References + calculated data
+
+Q1: b) https://www.cnn.com/2019/08/22/investing/yield-curve-explainer/index.html
+
+    c) (https://www.investopedia.com/articles/economics/08/monetary-policy-recession.asp)
+    
+Q3: https://towardsdatascience.com/a-one-stop-shop-for-principal-component-analysis-5582fb7e0a9c
+
+Calculated Yield Rates
+```{r data}
+yield_rates
+```
+
+Calculated Spot Rates
+```{r data2}
+spot_rates
+```
+
+Calculated Forward Rates
+```{r data3}
+forward_rate
+```
+
+
+
+
